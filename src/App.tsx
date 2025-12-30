@@ -133,7 +133,7 @@ function App() {
               Interview Question Generator
             </h1>
             <p className="text-slate-600">
-              Generate customized interview questions powered by AI
+              Generate customized interview questions
             </p>
           </div>
 
