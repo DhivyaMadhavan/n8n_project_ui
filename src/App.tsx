@@ -227,7 +227,7 @@ function App() {
                       className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-white"
                       placeholder="your@example.com"
                     />
-                    <p className="text-xs text-slate-600 mt-2">This is for confirmation and tracking purposes</p>
+                    
                   </div>
 
                   <div>
