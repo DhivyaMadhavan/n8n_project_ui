@@ -1,12 +1,13 @@
 import { useState } from 'react';
-import { Loader2, Briefcase, Mail, FileText } from 'lucide-react';
+import { Loader2, Briefcase, Mail, FileText, Plus, X } from 'lucide-react';
 
 interface FormData {
   jobRole: string;
   difficultyLevel: 'easy' | 'medium' | 'hard' | '';
   objectiveQuestions: string;
   programmingQuestions: string;
-  emails: string[];
+  submitterEmail: string;
+  recipientEmails: string[];
 }
 
 interface WorkflowResult {
@@ -20,7 +21,8 @@ function App() {
     difficultyLevel: '',
     objectiveQuestions: '',
     programmingQuestions: '',
-    emails: [''],
+    submitterEmail: '',
+    recipientEmails: [''],
   });
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<WorkflowResult | null>(null);
@@ -31,38 +33,38 @@ function App() {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
-  const handleEmailChange = (index: number, value: string) => {
-    const newEmails = [...formData.emails];
+  const handleRecipientEmailChange = (index: number, value: string) => {
+    const newEmails = [...formData.recipientEmails];
     newEmails[index] = value;
-    setFormData(prev => ({ ...prev, emails: newEmails }));
+    setFormData(prev => ({ ...prev, recipientEmails: newEmails }));
   };
 
-  const addEmailField = () => {
-    setFormData(prev => ({ ...prev, emails: [...prev.emails, ''] }));
+  const addRecipientEmail = () => {
+    setFormData(prev => ({ ...prev, recipientEmails: [...prev.recipientEmails, ''] }));
   };
 
-  const removeEmailField = (index: number) => {
-    if (formData.emails.length > 1) {
-      const newEmails = formData.emails.filter((_, i) => i !== index);
-      setFormData(prev => ({ ...prev, emails: newEmails }));
+  const removeRecipientEmail = (index: number) => {
+    if (formData.recipientEmails.length > 1) {
+      const newEmails = formData.recipientEmails.filter((_, i) => i !== index);
+      setFormData(prev => ({ ...prev, recipientEmails: newEmails }));
     }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
-    console.log("Generate Questions clicked");
-
-    console.log("Webhook URL:", import.meta.env.VITE_N8N_WEBHOOK_URL);
-
     e.preventDefault();
     setError(null);
     setResult(null);
     setIsLoading(true);
 
     try {
-      const validEmails = formData.emails.filter(email => email.trim() !== '');
+      const validRecipientEmails = formData.recipientEmails.filter(email => email.trim() !== '');
 
-      if (validEmails.length === 0) {
-        throw new Error('Please provide at least one email address');
+      if (!formData.submitterEmail.trim()) {
+        throw new Error('Please enter your email address');
+      }
+
+      if (validRecipientEmails.length === 0) {
+        throw new Error('Please provide at least one recipient email address');
       }
 
       const payload = {
@@ -70,7 +72,9 @@ function App() {
         difficultyLevel: formData.difficultyLevel,
         objectiveQuestions: parseInt(formData.objectiveQuestions),
         programmingQuestions: parseInt(formData.programmingQuestions),
-        emails: validEmails,
+        submitterEmail: formData.submitterEmail,
+        recipientEmails: validRecipientEmails,
+        submittedAt: new Date().toISOString()
       };
 
       const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL;
@@ -88,7 +92,7 @@ function App() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to trigger workflow');
+        throw new Error('Failed to generate questions');
       }
 
       const data = await response.json();
@@ -110,7 +114,8 @@ function App() {
       difficultyLevel: '',
       objectiveQuestions: '',
       programmingQuestions: '',
-      emails: [''],
+      submitterEmail: '',
+      recipientEmails: [''],
     });
     setResult(null);
     setError(null);
@@ -182,7 +187,7 @@ function App() {
                       value={formData.objectiveQuestions}
                       onChange={handleInputChange}
                       required
-                      min="1"
+                      min="0"
                       className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                       placeholder="e.g., 10"
                     />
@@ -199,53 +204,74 @@ function App() {
                       value={formData.programmingQuestions}
                       onChange={handleInputChange}
                       required
-                      min="1"
+                      min="0"
                       className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
                       placeholder="e.g., 5"
                     />
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Email Addresses
-                  </label>
-                  <div className="space-y-3">
-                    {formData.emails.map((email, index) => (
-                      <div key={index} className="flex gap-2">
-                        <input
-                          type="email"
-                          value={email}
-                          onChange={(e) => handleEmailChange(index, e.target.value)}
-                          required
-                          className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
-                          placeholder="email@example.com"
-                        />
-                        {formData.emails.length > 1 && (
-                          <button
-                            type="button"
-                            onClick={() => removeEmailField(index)}
-                            className="px-4 py-3 text-red-600 hover:bg-red-50 rounded-lg transition"
-                          >
-                            Remove
-                          </button>
-                        )}
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      onClick={addEmailField}
-                      className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium transition"
-                    >
-                      <Mail className="w-4 h-4" />
-                      Add Another Email
-                    </button>
+                <div className="border-t pt-6">
+                  <div className="bg-blue-50 rounded-lg p-4 mb-6">
+                    <label htmlFor="submitterEmail" className="block text-sm font-semibold text-slate-700 mb-2">
+                      <Mail className="inline-block w-4 h-4 mr-1" />
+                      Your Email Address
+                    </label>
+                    <input
+                      type="email"
+                      id="submitterEmail"
+                      name="submitterEmail"
+                      value={formData.submitterEmail}
+                      onChange={handleInputChange}
+                      required
+                      className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-white"
+                      placeholder="your@example.com"
+                    />
+                    <p className="text-xs text-slate-600 mt-2">This is for confirmation and tracking purposes</p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-semibold text-slate-700 mb-2">
+                      Send Questions To
+                    </label>
+                    <p className="text-xs text-slate-600 mb-3">Recipients who will receive the generated questions via email</p>
+
+                    <div className="space-y-3">
+                      {formData.recipientEmails.map((email, index) => (
+                        <div key={index} className="flex gap-2">
+                          <input
+                            type="email"
+                            value={email}
+                            onChange={(e) => handleRecipientEmailChange(index, e.target.value)}
+                            className="flex-1 px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                            placeholder="recipient@example.com"
+                          />
+                          {formData.recipientEmails.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => removeRecipientEmail(index)}
+                              className="px-3 py-3 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            >
+                              <X className="w-5 h-5" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={addRecipientEmail}
+                        className="flex items-center gap-2 text-blue-600 hover:text-blue-700 font-medium transition"
+                      >
+                        <Plus className="w-4 h-4" />
+                        Add Another Recipient
+                      </button>
+                    </div>
                   </div>
                 </div>
 
                 {error && (
                   <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-red-800 text-sm">{error}</p>
+                    <p className="text-red-800 text-sm font-medium">{error}</p>
                   </div>
                 )}
 
