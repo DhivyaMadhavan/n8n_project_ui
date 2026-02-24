@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Loader2, Briefcase, Mail, FileText, Plus, X } from 'lucide-react';
+import { Loader2, Briefcase, Mail, FileText, Plus, X, AlertCircle } from 'lucide-react';
 
 interface FormData {
   jobRole: string;
@@ -26,7 +26,6 @@ function App() {
   });
   const [isLoading, setIsLoading] = useState(false);
   const [result, setResult] = useState<WorkflowResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -52,7 +51,6 @@ function App() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
     setResult(null);
     setIsLoading(true);
 
@@ -60,11 +58,19 @@ function App() {
       const validRecipientEmails = formData.recipientEmails.filter(email => email.trim() !== '');
 
       if (!formData.submitterEmail.trim()) {
-        throw new Error('Please enter your email address');
+        setResult({
+          success: false,
+          message: 'Please enter your email address'
+        });
+        return;
       }
 
       if (validRecipientEmails.length === 0) {
-        throw new Error('Please provide at least one recipient email address');
+        setResult({
+          success: false,
+          message: 'Please provide at least one recipient email address'
+        });
+        return;
       }
 
       const payload = {
@@ -80,7 +86,11 @@ function App() {
       const webhookUrl = import.meta.env.VITE_N8N_WEBHOOK_URL;
 
       if (!webhookUrl) {
-        throw new Error('N8N webhook URL not configured. Please set VITE_N8N_WEBHOOK_URL in your .env file');
+        setResult({
+          success: false,
+          message: 'N8N webhook URL not configured. Please set VITE_N8N_WEBHOOK_URL in your .env file'
+        });
+        return;
       }
 
       const response = await fetch(webhookUrl, {
@@ -92,17 +102,33 @@ function App() {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate questions');
+        setResult({
+          success: false,
+          message: 'Something went wrong. Please try again later.'
+        });
+        return;
       }
 
-      const data = await response.json();
+      const rawData = await response.json();
+      const data = Array.isArray(rawData) ? rawData[0] : rawData;
+
+      if (!data.success) {
+        setResult({
+          success: false,
+          message: 'Something went wrong. Please try again later.'
+        });
+        return;
+      }
 
       setResult({
-        success: data.success || true,
-        message: data.message || 'Questions generated and email sent successfully!',
+        success: true,
+        message: 'Mail sent successfully',
       });
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'An error occurred');
+      setResult({
+        success: false,
+        message: 'Something went wrong. Please try again later.'
+      });
     } finally {
       setIsLoading(false);
     }
@@ -118,7 +144,6 @@ function App() {
       recipientEmails: [''],
     });
     setResult(null);
-    setError(null);
   };
 
   return (
@@ -227,7 +252,7 @@ function App() {
                       className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent transition bg-white"
                       placeholder="your@example.com"
                     />
-                    
+
                   </div>
 
                   <div>
@@ -269,12 +294,6 @@ function App() {
                   </div>
                 </div>
 
-                {error && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
-                    <p className="text-red-800 text-sm font-medium">{error}</p>
-                  </div>
-                )}
-
                 <button
                   type="submit"
                   disabled={isLoading}
@@ -292,12 +311,18 @@ function App() {
               </form>
             ) : (
               <div className="text-center space-y-8">
-                <div className="inline-flex items-center justify-center w-20 h-20 bg-green-100 rounded-full mb-4">
-                  <FileText className="w-10 h-10 text-green-600" />
+                <div className={`inline-flex items-center justify-center w-20 h-20 rounded-full mb-4 ${
+                  result.success ? 'bg-green-100' : 'bg-red-100'
+                }`}>
+                  {result.success ? (
+                    <FileText className="w-10 h-10 text-green-600" />
+                  ) : (
+                    <AlertCircle className="w-10 h-10 text-red-600" />
+                  )}
                 </div>
                 <div>
                   <h2 className="text-2xl font-bold text-slate-900 mb-2">
-                    Success!
+                    {result.success ? 'Success!' : 'Error'}
                   </h2>
                   <p className="text-slate-600 text-lg">
                     {result.message}
@@ -305,9 +330,11 @@ function App() {
                 </div>
 
                 <div className="space-y-4">
-                  <p className="text-slate-500 text-sm">
-                    Interview questions have been generated and sent to all provided email addresses.
-                  </p>
+                  {result.success && (
+                    <p className="text-slate-500 text-sm">
+                      Interview questions have been generated and sent to all provided email addresses.
+                    </p>
+                  )}
                   <button
                     onClick={resetForm}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition"
